@@ -204,10 +204,14 @@ lazy val benchmark = project
   .settings(allSettings)
   .settings(noPublishSettings)
   .settings(
+    fork in Test := true,
+    parallelExecution in Test := false,
+    javaOptions in Test += s"-javaagent:${System.getProperty("user.home")}/.ivy2/cache/com.google.code.java-allocation-instrumenter/java-allocation-instrumenter/jars/java-allocation-instrumenter-3.0.jar",
     libraryDependencies ++= Seq(
       "com.typesafe.play" %% "play-json" % "2.3.10",
       "io.argonaut" %% "argonaut" % "6.1",
       "io.spray" %% "spray-json" % "1.3.2",
+      "com.google.code.java-allocation-instrumenter" % "java-allocation-instrumenter" % "3.0",
       "org.scalatest" %% "scalatest" % "3.0.0-M9" % "test"
     )
   )

@@ -1,5 +1,7 @@
 package io.circe.benchmark
 
+import java.util.concurrent.atomic.AtomicLong
+import com.google.monitoring.runtime.instrumentation.{AllocationRecorder, Sampler}
 import org.scalatest.FlatSpec
 
 class DecodingBenchmarkSpec extends FlatSpec {
@@ -7,6 +9,20 @@ class DecodingBenchmarkSpec extends FlatSpec {
 
   import benchmark._
 
+  private[this] final def createSampler() = new Sampler {
+//    private[this] val buf = Vector.newBuilder[String]
+    private[this] val counter = new AtomicLong(0)
+
+    override final def sampleAllocation(count: Int, desc: String, newObj: Any, size: Long): Unit = {
+//      buf += s"count=$count desc=$desc size=$size"
+      counter.incrementAndGet()
+    }
+
+//    def result(): Vector[String] = buf.result()
+    def result(): Long = counter.get()
+  }
+
+/*
   "The decoding benchmark" should "correctly decode integers using Circe" in {
     assert(decodeIntsC === ints)
   }
@@ -31,11 +47,38 @@ class DecodingBenchmarkSpec extends FlatSpec {
     assert(decodeFoosA === foos)
   }
 
+*/
   it should "correctly decode case classes using Play JSON" in {
-    assert(decodeFoosP === foos)
+    val sampler1 = createSampler()
+    AllocationRecorder.addSampler(sampler1)
+    try {
+//      assert(decodeFoosA === foos)
+      assert(decodeFoosC === foos)
+//      assert(decodeFoosP === foos)
+//      assert(decodeFoosS === foos)
+    } finally {
+      AllocationRecorder.removeSampler(sampler1)
+    }
+    val allocations1 = sampler1.result()
+    println(s"run 1: $allocations1 allocations")
+
+    val sampler2 = createSampler()
+    AllocationRecorder.addSampler(sampler2)
+    try {
+//      assert(decodeFoosA === foos)
+      assert(decodeFoosC === foos)
+//      assert(decodeFoosP === foos)
+//      assert(decodeFoosS === foos)
+    } finally {
+      AllocationRecorder.removeSampler(sampler2)
+    }
+    val allocations2 = sampler2.result()
+    println(s"run 2: $allocations2 allocations")
   }
+/*
 
   it should "correctly decode case classes using Spray JSON" in {
     assert(decodeFoosS === foos)
   }
+*/
 }
