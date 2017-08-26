@@ -4,10 +4,13 @@ import cats.kernel.Eq
 import io.circe.{ Decoder, Encoder, Json, ObjectEncoder }
 import io.circe.generic.extras.semiauto._
 import io.circe.literal._
+import io.circe.testing.CodecTests
 import io.circe.tests.CirceSuite
 import io.circe.tests.examples._
 import shapeless.Witness
 import shapeless.labelled.{ field, FieldType }
+import org.scalacheck.{Arbitrary, Gen}
+import org.scalacheck.Arbitrary.arbitrary
 
 class ConfiguredSemiautoDerivedSuite extends CirceSuite {
   /**
@@ -20,10 +23,21 @@ class ConfiguredSemiautoDerivedSuite extends CirceSuite {
 
     object ConfigExampleFoo {
       implicit val eqConfigExampleFoo: Eq[ConfigExampleFoo] = Eq.fromUniversalEquals
+      val genConfigExampleFoo: Gen[ConfigExampleFoo] = for {
+        thisIsAField <- arbitrary[String]
+        a            <- arbitrary[Int]
+        b            <- arbitrary[Double]
+      } yield ConfigExampleFoo(thisIsAField, a, b)
+      implicit val arbitraryConfigExampleFoo: Arbitrary[ConfigExampleFoo] =
+        Arbitrary(genConfigExampleFoo)
     }
 
     object ConfigExampleBase {
       implicit val eqConfigExampleBase: Eq[ConfigExampleBase] = Eq.fromUniversalEquals
+      val genConfigExampleBase: Gen[ConfigExampleBase] =
+        Gen.oneOf(Gen.const(ConfigExampleBar), arbitrary[ConfigExampleFoo])
+      implicit val arbitraryConfigExampleBase: Arbitrary[ConfigExampleBase] =
+        Arbitrary(genConfigExampleBase)
     }
   }
 
@@ -42,6 +56,8 @@ class ConfiguredSemiautoDerivedSuite extends CirceSuite {
 
   implicit val decodeConfigExampleBase: Decoder[ConfigExampleBase] = deriveDecoder
   implicit val encodeConfigExampleBase: ObjectEncoder[ConfigExampleBase] = deriveEncoder
+
+  checkLaws("Codec[ConfigExampleBase]", CodecTests[ConfigExampleBase].codec)
 
   "Semi-automatic derivation" should "support configuration" in forAll { (f: String, b: Double) =>
     val foo: ConfigExampleBase = ConfigExampleFoo(f, 0, b)
